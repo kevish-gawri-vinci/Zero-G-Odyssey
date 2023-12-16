@@ -3,22 +3,27 @@ import anime from 'animejs';
 import ScoreLabel from './ScoreLabel';
 import skyAsset from '../../assets/sky_tes.jpg';
 import asteroidAsset from '../../assets/asteroid.png';
-import dudeAsset from '../../assets/Ship3.png';
+import skin0 from '../../assets/Ship1.png';
+import skin1 from '../../assets/Ship2.png';
+import skin2 from '../../assets/Ship3.png';
+import skin3 from '../../assets/Ship4.png';
+import skin4 from '../../assets/Ship5.png';
+import skin5 from '../../assets/Ship6.png';
+import skin6 from '../../assets/Ship7.png';
+import skin7 from '../../assets/Ship8.png';
 import gameAudio from '../../assets/audio/gamemusic-6082.mp3';
 import gameOverAudio from '../../assets/audio/game-over-arcade-6435.mp3';
 import bulletAsset from '../../assets/bullets.png';
 import starAsset from '../../assets/star.png';
+import { getUserSessionData, isLoggedIn } from '../../utils/auth';
 
-const DUDE_KEY = 'dude';
 const BULLET_KEY = 'bullet';
-const STAR_KEY = 'star';
 
 class GameScene extends Phaser.Scene {
-  constructor() {
+  constructor(skinID) {
     super('game-scene');
     this.player = undefined;
     this.cursors = undefined;
-    this.scoreLabel = undefined;
     this.starLabel = undefined;
     this.starCount = 0;
     this.timerEvent = undefined;
@@ -26,64 +31,101 @@ class GameScene extends Phaser.Scene {
     this.obstacleDelay = 10; // Initial delay
     this.obstacleDelayDecreaseRate = 10; // Rate at which delay decreases
     this.minObstacleDelay = 10; // Minimum delay value
-    this.gameOverFlag = false;
+    this.starDelay = 10;
+    this.starDelayDecreaseRate = 10;
+    this.gameOverFlag  = false;
     this.stars = undefined;
-    this.score = 0; // Initialize the score
-    this.scoreIncrement = 10; // Increment value for the score
-    this.scoreDelay = 1000;
+    this.skin = `skin${skinID}`;
+
+    if (!skinID) this.skin = 'skin0';
+    // initialize score
+    this.scoreLabel = undefined;
+    this.score = 0;
+
   }
 
   preload() {
     this.load.image('sky', skyAsset);
     this.load.image('obstacle', asteroidAsset);
-    this.load.image(DUDE_KEY, dudeAsset);
+    this.load.image('skin0', skin0);
+    this.load.image('skin1', skin1);
+    this.load.image('skin2', skin2);
+    this.load.image('skin3', skin3);
+    this.load.image('skin4', skin4);
+    this.load.image('skin5', skin5);
+    this.load.image('skin6', skin6);
+    this.load.image('skin7', skin7);
     this.load.audio('music', gameAudio);
     this.load.audio('gameOver', gameOverAudio);
     this.load.image(BULLET_KEY, bulletAsset);
-    this.load.image(STAR_KEY, starAsset);
+    this.load.image('star', starAsset);
   }
 
   create() {
     // background
     this.add.image(600, 400, 'sky'); // Center the background image
-
     // player
-    this.player = this.physics.add.sprite(80, 400, DUDE_KEY); // Adjust player starting position
+    this.player = this.physics.add.sprite(80, 400, this.skin); // Adjust player starting position
     this.player.setCollideWorldBounds(true);
+
     // Setting a smaller hitbox for the player sprite
-    this.player.setSize(60, 20); // Width of 40 pixels, height of 20 pixels
+    this.player.setSize(50, 12); 
 
     // obstacles
     this.obstacles = this.physics.add.group();
 
-    // Create obstacles outside the game scene
+    // stars
+    this.stars = this.physics.add.group();
+
     // eslint-disable-next-line no-plusplus
-    for (let i = 0; i < 30; i++) {
-      // Increase the number of obstacles
+    this.createStars();
+
+     // Handle collision between player and stars
+    this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
+
+     // Create a label to display the collected stars count
+    this.starLabel = this.add.text(16, 70, 'Stars: 0', { fontSize: '20px', fill: '#FFF', fontFamily: 'Pixelify Sans' })
+    
+    // choose the number of obstacles to be created
+    // eslint-disable-next-line no-plusplus
+    for (let i = 0; i < 20; i++) {
+
       const obstacle = this.obstacles.create(
-        Phaser.Math.Between(400, 5000), // Place obstacles outside the game scene
-        Phaser.Math.Between(0, 900), // Place obstacles anywhere on the y-axis
-        'obstacle',
+        Phaser.Math.Between(400, 4000), // Place obstacles outside the game scene
+        Phaser.Math.Between(0, 900),  // Place obstacles anywhere on the y-axis
+        'obstacle'
       );
+
       this.physics.add.collider(this.player, obstacle, this.playerObstacleCollision, null, this);
     }
     this.music = this.sound.add('music');
     this.music.play({ loop: true });
-    this.initialPlayerX = this.player.x;
+
     this.scoreLabel = this.createScoreLabel(16, 16, this.score);
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.scoreTimer = this.time.addEvent({
-      delay: this.scoreDelay, // Update score every specified milliseconds
+
+
+    this.scoreUpdateTimer = this.time.addEvent({
+      delay: 1000, // Update score every second
+
       callback: this.updateScore,
       callbackScope: this,
       loop: true,
     });
-    this.timerEvent = this.time.addEvent({
-      delay: this.obstacleDelay,
-      callback: this.moveObstacles,
+
+    this.cursors = this.input.keyboard.createCursorKeys(); 
+
+    // movement of stars and obstacles
+    this.obstacleAndStarMoveEvent = this.time.addEvent({
+      delay: Math.min(this.obstacleDelay, this.starDelay),
+      callback: () => {
+        this.moveObstacles();
+        this.moveStars();
+      },
       callbackScope: this,
-      loop: true,
+      loop: true
     });
+    
+    // bullets physics
     this.bullets = this.physics.add.group({
       key: BULLET_KEY,
       repeat: 9,
@@ -96,10 +138,13 @@ class GameScene extends Phaser.Scene {
       bullet.setActive(false).setVisible(false);
     });
 
+    // bullet ready label
     this.bulletReadyText = this.add.text(16, 50, 'Bullet Ready', {
       fontSize: '20px',
       fill: '#00FF00',
+      fontFamily: 'Pixelify Sans',
     });
+
     this.lastFiredTime = 0; // Time when the last bullet was fired
     this.fireDelay = 2000; // Delay between consecutive shots in milliseconds
 
@@ -111,27 +156,6 @@ class GameScene extends Phaser.Scene {
       this,
     );
     this.physics.world.setBoundsCollision(true, true, false, false);
-
-    // stars
-    this.stars = this.physics.add.group({
-      key: STAR_KEY,
-      repeat: 1,
-      setXY: () => {
-        let randomY = Phaser.Math.Between(15, 705);
-        while (this.obstacleAtPosition(800, randomY)) {
-          randomY = Phaser.Math.Between(15, 705);
-        }
-        return { x: 800, y: randomY };
-      },
-      setScale: { x: 1, y: 1 },
-    });
-
-    this.stars.children.iterate((star) => {
-      const randomY = Phaser.Math.Between(15, 705);
-      star.setPosition(star.x, randomY);
-    });
-
-    this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
   }
 
   playerObstacleCollision() {
@@ -141,25 +165,29 @@ class GameScene extends Phaser.Scene {
   async gameOver() {
     this.scoreLabel.setText(`GAME OVER  \nYour Score = ${this.scoreLabel.score}`);
     this.physics.pause();
+
     this.music.stop();
     this.sound.play('gameOver');
     if (this.scoreTimer) {
       this.scoreTimer.destroy();
     }
+
     this.player.setTint(0xff0000);
     this.gameOverFlag = true;
 
-    
+    // show gameOver screen
     const gameOverScreen = document.getElementById('gameOverScreen');
     gameOverScreen.style.display = "grid";
     const pointsDisplay = document.getElementById('pointsDisplay');
     pointsDisplay.innerHTML = `${this.scoreLabel.score}`;
     gameOverScreen.style.opacity = "1";
+    gameOverScreen.style.zIndex = "2";
     const starsDisplay = document.getElementById('starsDisplay');
-    starsDisplay.innerHTML = `50  <img src=${starAsset}>`;
+    starsDisplay.innerHTML = `${this.starCount}  <img src=${starAsset}>`;
+    
     const animatedText = anime({
       targets: '.gameOverText',
-      translateY: 25,
+      translateY: 15,
       easing: 'easeInOutExpo',
       delay: 250
     });
@@ -172,40 +200,62 @@ class GameScene extends Phaser.Scene {
     return;
   }
 
-  // Parser l'objet User pour obtenir le token JWT
-  const parsedUserObject = JSON.parse(userObject);
-  const {token} = parsedUserObject;
+  // // Parser l'objet User pour obtenir le token JWT
+  // const parsedUserObject = JSON.parse(userObject);
+  // const {token} = parsedUserObject.token;
 
-  if (!token) {
-    console.error('Token JWT non trouvé, score non enregistré');
-    return;
-  }
+  // if (!token) {
+  //   console.error('Token JWT non trouvé, score non enregistré');
+  //   return;
+
+  // }
 
   // Envoyer le score au serveur avec le token JWT
-  try {
-    const response = await fetch('http://localhost:3000/users/update-score', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `${token}`
-      },
-      body: JSON.stringify({ newScore: this.score })
-    });
-  
-    if (!response.ok) {
-      const errorDetails = await response.json();
-      console.error('Erreur lors de la mise à jour du score:', errorDetails.message);
+  if (isLoggedIn()){
+    const token = getUserSessionData()?.token;
+    try {
+      const response = await fetch('/api/users/update-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${token}`
+        },
+        body: JSON.stringify({ newScore: this.scoreLabel.score })
+      });
+    
+      if (!response.ok) {
+        const errorDetails = await response.json();
+        console.error('Erreur lors de la mise à jour du score:', errorDetails.message);
+      }
+    } catch (error) {
+      console.error('Erreur réseau:', error);
     }
-  } catch (error) {
-    console.error('Erreur réseau:', error);
+  
+  // Update stars
+
+    try {
+      const response = await fetch('/api/users/add-stars', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${token}`
+        },
+        body: JSON.stringify({ stars: this.starCount })
+      })
+      if (!response.ok) alert("Problème de sauvegarde des étoiles")
+    } catch (e){
+      console.error("Error")
+    }
   }
-  }
+}
 
   update() {
     if (this.gameOverFlag) {
       return;
     }
     const sceneHeight = 735;
+
+    // what keyboard does
     if (this.cursors.up.isDown && this.player.y > 0) {
       this.player.setVelocityY(-300);
     } else if (
@@ -219,6 +269,7 @@ class GameScene extends Phaser.Scene {
     if (this.cursors.space.isDown) {
       this.tryShootBullet();
     }
+
     // Update bullet ready text
     const currentTime = this.time.now;
     const timeSinceLastShot = currentTime - this.lastFiredTime;
@@ -235,40 +286,65 @@ class GameScene extends Phaser.Scene {
 
   updateScore() {
     if (!this.gameOverFlag) {
-      this.score += this.scoreIncrement; // Increment the score by the defined value
-      this.scoreLabel.setScore(this.score); // Update the score label
+      this.scoreLabel.add(10); // Increment the score by 10
     }
   }
 
   moveObstacles() {
     const obstacleVelocity = -300; // Initial obstacle velocity
     const scoreMultiplier = 0.3; // Velocity increase per score unit
-
-    // Increase obstacle velocity based on the score or distance traveled
     const currentScore = this.scoreLabel.score; // Get the current score
     const increasedVelocity = obstacleVelocity - currentScore * scoreMultiplier;
-
-    // Set the new velocity for the obstacles
     this.obstacles.setVelocityX(increasedVelocity);
-
     this.obstacles.children.iterate((obstacle) => {
       if (obstacle && obstacle.getBounds().right < -100) {
-        // Check if obstacle is completely outside the game scene
         obstacle.setPosition(
           Phaser.Math.Between(1200, 1400), // Reposition the obstacle outside the game scene
           Phaser.Math.Between(0, 800), // Place obstacles anywhere on the y-axis
         );
       }
     });
+  }
 
-    this.stars.setVelocityX(-300);
+  createStars() {
+      const star = this.stars.create(
+        Phaser.Math.Between(1200,1400),
+        Phaser.Math.Between(0, 800),
+        'star'
+      );
+      star.setCollideWorldBounds(false);
+  }
 
-    this.stars.children.iterate((star) => {
-      if (star && star.getBounds().right < 0) {
-        const randomY = Phaser.Math.Between(1200, 1400);
-        star.setPosition(800, randomY);
+  createObscacles() {
+    const obstacle = this.obstacles.create(
+      Phaser.Math.Between(1200,1400),
+      Phaser.Math.Between(0, 800),
+      'obstacle'
+    );
+    this.physics.add.collider(this.player, obstacle, this.playerObstacleCollision, null, this);
+}
+
+  moveStars() {
+    const starVelocity = -300; // Initial star velocity
+    const scoreMultiplier = 0.3; // Velocity increase per score unit
+    const currentScore = this.scoreLabel.score; // Get the current score
+    const increasedVelocity = starVelocity - (currentScore * scoreMultiplier);
+    this.stars.setVelocityX(increasedVelocity);
+    this.stars.children.iterate(star => {
+      if (star && star.getBounds().right < -100) { // Check if star is completely outside the game scene
+        star.setPosition(
+          Phaser.Math.Between(1200, 1200), // Reposition the star outside the game scene
+          Phaser.Math.Between(0, 705)     // Place star anywhere on the y-axis
+        );
       }
     });
+  }
+
+  collectStar(player, star) {
+    star.disableBody(true, true);
+    this.starCount += 10;
+    this.starLabel.setText(`Stars: ${this.starCount}`);
+    this.createStars();
   }
 
   tryShootBullet() {
@@ -318,42 +394,16 @@ class GameScene extends Phaser.Scene {
         bullet.setActive(false).setVisible(false);
         obstacle.destroy();
         this.scoreLabel.add(10);
+        this.createObscacles();
       }
     }
   }
 
   createScoreLabel(x, y, score) {
-    const style = { fontSize: '32px', fill: '#FFF' };
+    const style = { fontSize: '32px', fill: '#FFF', fontFamily: 'Pixelify Sans'};
     const label = new ScoreLabel(this, x, y, score, style);
     this.add.existing(label);
-
     return label;
-  }
-
-  collectStar(player, star) {
-    // Disable the star's body on collision
-    star.disableBody(true, true);
-
-    // Update the star count
-    this.starCount += 10;
-    this.starLabel.setText(`Stars: ${this.starCount}`);
-
-    // Respawn a new star beyond the right edge of the screen
-    const newStar = this.stars.create(
-      Phaser.Math.Between(800, 1600),
-      Phaser.Math.Between(15, 705),
-      STAR_KEY,
-    );
-    newStar.setVelocityX(-200);
-    newStar.setScale(1);
-    newStar.setDepth(1);
-
-    // Adjust the new star's position to avoid overlapping with obstacles
-    let randomY = Phaser.Math.Between(15, 705);
-    while (this.obstacleAtPosition(newStar.x, randomY)) {
-      randomY = Phaser.Math.Between(15, 705);
-    }
-    newStar.setPosition(newStar.x, randomY);
   }
 }
 export default GameScene;
