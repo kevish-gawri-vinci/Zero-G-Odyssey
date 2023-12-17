@@ -1,4 +1,3 @@
-// import ClearPage from '../../utils/render'
 // Function to fetch player data from the API
 const fetchPlayers = async () => {
   const response = await fetch(`${process.env.API_BASE_URL}/users/`);
@@ -9,7 +8,7 @@ const fetchPlayers = async () => {
 const LeaderboardPage = async () => {
   try {
     const players = await fetchPlayers();
-    players.sort((a, b) => b.score - a.score);
+    players.sort((a, b) => b.bestscore - a.bestscore);
 
     const main = document.querySelector('main');
     main.innerHTML = `
@@ -41,7 +40,6 @@ const LeaderboardPage = async () => {
     `;
   } catch (error) {
     console.error('Error fetching or rendering leaderboard:', error);
-    // Here, you can add error handling logic, like displaying a message to the user.
   }
 };
 

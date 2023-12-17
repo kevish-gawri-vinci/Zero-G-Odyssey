@@ -1,7 +1,7 @@
 import { getUserSessionData } from '../../utils/auth';
 
 const fetchPlayers = async () => {
-  const response = await fetch('/api/users/');
+  const response = await fetch(`${process.env.API_BASE_URL}/users/`);
   const players = await response.json();
   return players;
 };
@@ -12,8 +12,7 @@ const ProfilePage = async () => {
     const players = await fetchPlayers();
     const currentUser = getUserSessionData().username;
     const userData = players.find(player => player.username === currentUser);
-    const { username, birthdate, bestscore, stars } = userData; // Assurez-vous d'avoir la propriété 'stars' dans vos données utilisateur
-
+    const { username, birthdate, bestscore, stars } = userData; 
     const profileHTML = `
       <div class="container">
         <div class="row justify-content-center">
@@ -22,7 +21,7 @@ const ProfilePage = async () => {
             <div class="profile-info">
               <h2>Nom d'utilisateur: ${username}</h2>
               <h3>Date de naissance: ${birthdate}</h3>
-              <h3>Score: ${bestscore}</h3>
+              <h3>Meilleur score: ${bestscore}</h3>
               <h3>Étoiles: ${stars}</h3> 
             </div>
           </div>

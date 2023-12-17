@@ -200,29 +200,35 @@ class GameScene extends Phaser.Scene {
     return;
   }
 
-  // // Parser l'objet User pour obtenir le token JWT
-  // const parsedUserObject = JSON.parse(userObject);
-  // const {token} = parsedUserObject.token;
-
-  // if (!token) {
-  //   console.error('Token JWT non trouvé, score non enregistré');
-  //   return;
-
-  // }
-
-  // Envoyer le score au serveur avec le token JWT
+  // Send score to the API
   if (isLoggedIn()){
     const token = getUserSessionData()?.token;
     try {
-      const response = await fetch('/api/users/update-score', {
-        method: 'POST',
+      const response = await fetch(`${process.env.API_BASE_URL}/users/update-score`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `${token}`
         },
         body: JSON.stringify({ newScore: this.scoreLabel.score })
       });
-    
+      const result = await response.json();
+      if (result.success){
+        const highScoreText = document.querySelector("#GameOver");
+        const points = document.querySelector('#pointsDisplay');
+        highScoreText.classList += " highScore";
+        highScoreText.innerText = "High Score !"
+        points.classList += " highScore";
+
+        anime({
+          targets: points,
+          translateY: [
+            { value: -20, duration: 500, easing: 'easeOutQuad' },
+            { value: 0, duration: 800, easing: 'easeInQuad' }
+          ],
+          loop: true
+        }).play();
+      }
       if (!response.ok) {
         const errorDetails = await response.json();
         console.error('Erreur lors de la mise à jour du score:', errorDetails.message);
@@ -234,8 +240,8 @@ class GameScene extends Phaser.Scene {
   // Update stars
 
     try {
-      const response = await fetch('/api/users/add-stars', {
-        method: 'POST',
+      const response = await fetch(`${process.env.API_BASE_URL}/users/add-stars`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `${token}`

@@ -6,8 +6,8 @@
     font-weight: 600px;
     color: white;
     background-color: black;
-    background-size: cover; /* Adjust as needed */
-    background-repeat: no-repeat; /* Adjust as needed */
+    background-size: cover; 
+    background-repeat: no-repeat; 
 }
 .navbar-brand, #navbarWrapper{
     color: white;
@@ -15,19 +15,42 @@
 
 }
 
+
 .navbar-brand{
     font-size: 50px;
     text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.714);
+}
+#title{
+    font-size: 50px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 500px){
+    .navbar-brand{
+        font-size: 35px;
+    }
+}
+
+@media (max-width: 375px){
+    .navbar-brand{
+        font-size: 28px;
+    }
+    #title{
+        font-size: 38px;
+    }
+}
+.navbar-toggler-icon, .navbar-toggler{
+    background-color: green;
+}
+.navbar-nav{
+    align-items: flex-end;
 }
 
 .navbar-brand:hover, .navbar-brand:focus {
     color: white;
 }
 
-#title{
-    font-size: 50px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-}
+
 
 #menu{
     background-color: rgba(92, 92, 92, 0);
@@ -142,12 +165,8 @@
 }
 
 .game-page-container {
-    /* Other styles */
-  
-    /* Background image properties */
-     /* Replace 'path_to_your_image.jpg' with your image path */
-    background-size: cover; /* Adjust as needed */
-    background-repeat: no-repeat; /* Adjust as needed */
+    background-size: cover; 
+    background-repeat: no-repeat; 
   }
  .table table-hover{
     background-color:green;
@@ -202,6 +221,7 @@
     align-items: center;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr 1fr;
+    width: 1200px; height: 700px;
 }
 
 #GameOver{
@@ -214,9 +234,35 @@
     justify-self: center;
 }
 
+.highScore{
+    background-image: linear-gradient(45deg, #ff3366, #ffcc33, #66ff66);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: bold; 
+    text-decoration: underline;
+}
+
 #gameover-points, #gameover-stars, #pointsDisplay, #starsDisplay{
     font-size: 45px;
     margin: 20px;
+}
+@media (max-width: 500px){
+    #gameOverScreen{
+        display: grid;
+        align-items: center;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    }
+    #gameover-points, #gameover-stars, #pointsDisplay, #starsDisplay{
+        font-size: small;
+    }
+    #GameOver{
+        font-size: xx-large;
+    }
+    #gameOverRestart, #gameOverExit {
+        width: 150px;
+    }
 }
 
 #gameover-points, #gameover-stars {
@@ -263,8 +309,8 @@
 }
 
 .profile-container {
-    background-color: rgba(0, 0, 0, 0.8); /* fond semi-transparent noir */
-    border: 3px solid green; /* bordure verte */
+    background-color: rgba(0, 0, 0, 0.8); 
+    border: 3px solid green; 
     padding: 20px;
     border-radius: 15px;
     margin-top: 20px;
@@ -287,7 +333,7 @@
     height: 3px;
     background-color: green;
     width: 50%;
-    margin: 0 auto; /* Centre la barre */
+    margin: 0 auto; 
     margin-top: 5px;
   }
   
@@ -296,5 +342,9 @@
     text-align: center;
   }
   
+  .terms-page {
+    overflow: auto; 
+    height: 90vh; 
+}
   
   
